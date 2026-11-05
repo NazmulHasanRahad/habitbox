@@ -42,7 +42,7 @@ class TaskCard extends StatefulWidget {
   /// Opens the details screen for this task.
   final VoidCallback? onTap;
 
-  static const double radius = 18;
+  static const double radius = 10;
 
   /// The mark box, plus the invisible margin that makes it comfortable to
   /// catch. The folded steps line up under the title with the same total
@@ -71,13 +71,12 @@ class _TaskCardState extends State<TaskCard> {
   static Color _wash(Task task, bool isDark) {
     final seed = task.id ?? task.title.hashCode;
     final hue = (seed.abs() * 137.507) % 360;
+
     return HSLColor.fromAHSL(
       1,
       hue,
-      // Only a whisper of saturation: the wash has to sit under the text
-      // without competing with the mark box and the due chip.
-      isDark ? 0.38 : 0.44,
-      isDark ? 0.2 : 0.84,
+      isDark ? 0.52 : 0.72,
+      isDark ? 0.30 : 0.86,
     ).toColor();
   }
 
@@ -116,22 +115,18 @@ class _TaskCardState extends State<TaskCard> {
         ),
         borderRadius: BorderRadius.circular(TaskCard.radius),
         gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
             Color.lerp(
-              Color.lerp(
-                scheme.surfaceContainerHigh,
-                Colors.white,
-                isDark ? 0.045 : 0.34,
-              )!,
+              scheme.surfaceContainerHigh,
               wash,
-              isDark ? 0.22 : 0.16,
+              isDark ? 0.42 : 0.38,
             )!,
             Color.lerp(
               scheme.surfaceContainerHigh,
               wash,
-              isDark ? 0.13 : 0.09,
+              isDark ? 0.28 : 0.25,
             )!,
           ],
         ),

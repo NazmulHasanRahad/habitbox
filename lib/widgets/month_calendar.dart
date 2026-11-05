@@ -5,6 +5,12 @@ import '../utils/date_key.dart';
 
 /// Premium Monday-start monthly calendar.
 /// Existing date logic and callbacks are preserved.
+///
+/// Two readings of a day are supported:
+///  * the default one — a dot under the day number, for a yes/no habit;
+///  * the measured one — passing [entries] prints the logged value against
+///    [goalValue] inside the cell, so a count/measure day shows both how much
+///    was done and what the target was.
 class MonthCalendar extends StatelessWidget {
   const MonthCalendar({
     super.key,
@@ -13,6 +19,8 @@ class MonthCalendar extends StatelessWidget {
     required this.selectedDateKey,
     required this.accent,
     required this.onDayTap,
+    this.entries,
+    this.goalValue,
   });
 
   /// Any DateTime inside the month being displayed.
@@ -21,6 +29,12 @@ class MonthCalendar extends StatelessWidget {
   final String selectedDateKey;
   final Color accent;
   final ValueChanged<DateTime> onDayTap;
+
+  /// Logged value per `yyyy-MM-dd` key. Null keeps the dot-style cells.
+  final Map<String, double>? entries;
+
+  /// The habit's daily target, printed after the value when present.
+  final double? goalValue;
 
   static const List<String> _weekdayLabels = [
     'MON',
@@ -31,6 +45,14 @@ class MonthCalendar extends StatelessWidget {
     'SAT',
     'SUN',
   ];
+
+  /// Measured cells need room for a second line under the day number.
+  bool get _showsValues => entries != null;
+
+  double get _cellHeight => _showsValues ? 56 : 48;
+
+  static String _shortNumber(double value) =>
+      value % 1 == 0 ? value.toInt().toString() : value.toString();
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +156,7 @@ class MonthCalendar extends StatelessWidget {
       onTap: isFuture ? null : () => onDayTap(date),
       behavior: HitTestBehavior.opaque,
       child: Container(
-        height: 48,
+        height: _cellHeight,
         margin: const EdgeInsets.all(2),
         decoration: BoxDecoration(
           color: backgroundColor,
@@ -155,19 +177,73 @@ class MonthCalendar extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 4),
+            if (_showsValues) ...[
+              const SizedBox(height: 4),
+              SizedBox(
+                height: 11,
+                child: _valueLabel(key, isActive),
+              ),
+            ] else ...[
+              const SizedBox(height: 4),
 
-            // Marked date indicator
-            Container(
-              width: 4,
-              height: 4,
-              decoration: BoxDecoration(
-                color: isMarked && isActive
+              // Marked date indicator
+              Container(
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isMarked && isActive
+                      ? accent
+                      : Colors.transparent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// `value/target` for a measured day, e.g. `8/10`. A day that reached the
+  /// target wears the full accent; a partial one is dimmed. Days in the
+  /// neighbouring months or in the future stay blank.
+  Widget _valueLabel(String key, bool isActive) {
+    if (!isActive) return const SizedBox.shrink();
+    final value = entries?[key];
+    if (value == null || value <= 0) return const SizedBox.shrink();
+
+    final goal = goalValue;
+    final hasGoal = goal != null && goal > 0;
+    final reached = hasGoal && value >= goal;
+
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: _shortNumber(value),
+              style: TextStyle(
+                fontSize: 9,
+                height: 1,
+                fontWeight: FontWeight.w700,
+                color: reached
                     ? accent
-                    : Colors.transparent,
-                shape: BoxShape.circle,
+                    : accent.withValues(alpha: 0.72),
               ),
             ),
+            if (hasGoal)
+              TextSpan(
+                text: '/${_shortNumber(goal)}',
+                style: TextStyle(
+                  fontSize: 9,
+                  height: 1,
+                  fontWeight: FontWeight.w600,
+                  color: reached
+                      ? Colors.white70
+                      : Colors.white38,
+                ),
+              ),
           ],
         ),
       ),

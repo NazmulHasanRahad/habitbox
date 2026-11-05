@@ -33,9 +33,9 @@ class DailyBarChart extends StatelessWidget {
   static const double barGap = 3;
   static const double chartHeight = 64;
   static const double valueLabelHeight = 12;
-  static const double dayLabelHeight = 20;
+  static const double dayLabelHeight = 12;
   static const double barRadius = 3;
-  static const double verticalGap = 2;
+  static const double verticalGap = 1;
 
   static final DateFormat _monthLabel = DateFormat('MMM');
 
@@ -176,7 +176,7 @@ class DailyBarChart extends StatelessWidget {
                       softWrap: false,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 9,
+                        fontSize: 7,
                         height: 1.1,
                         color: barColor.withValues(alpha: 0.9),
                         fontWeight: FontWeight.w600,
@@ -247,7 +247,7 @@ class DailyBarChart extends StatelessWidget {
                         Text(
                           '${day.day}',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 6,
                             height: 1.1,
                             color: isToday || isSelected
                                 ? Colors.white
@@ -262,7 +262,7 @@ class DailyBarChart extends StatelessWidget {
                           Text(
                             _monthLabel.format(day),
                             style: const TextStyle(
-                              fontSize: 9,
+                              fontSize: 5,
                               height: 1.1,
                               color: Colors.white38,
                             ),

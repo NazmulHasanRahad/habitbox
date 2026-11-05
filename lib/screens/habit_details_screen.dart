@@ -29,10 +29,14 @@ class _HabitDetailsScreenState extends State<HabitDetailsScreen> {
   final HabitRepository _repository = HabitRepository();
 
   static final DateFormat _monthTitle = DateFormat('MMM yyyy');
+  static final DateFormat _monthShort = DateFormat('MMM');
   static final DateFormat _selectedTitle = DateFormat('EEEE, d MMMM yyyy');
 
   /// The day the habit began, shown once in the record card.
   static final DateFormat _startLabel = DateFormat('d MMM yyyy');
+
+  /// How far back the month picker and the arrows are allowed to go.
+  static const int _historyMonths = 24;
 
   Habit? _habit;
   Map<String, double> _entries = {};
@@ -187,6 +191,155 @@ class _HabitDetailsScreenState extends State<HabitDetailsScreen> {
     _load();
   }
 
+  // ---------------------------------------------------------------------------
+  // Month navigation
+  // ---------------------------------------------------------------------------
+
+  bool get _canGoNext {
+    return DateTime(
+      _displayMonth.year,
+      _displayMonth.month + 1,
+    ).isBefore(DateTime(today.year, today.month + 1));
+  }
+
+  /// Keeps the picker and the arrows inside the same 24 months of history.
+  bool get _canGoPrev {
+    return DateTime(
+      _displayMonth.year,
+      _displayMonth.month,
+    ).isAfter(DateTime(today.year, today.month - (_historyMonths - 1)));
+  }
+
+  void _stepMonth(int delta) {
+    setState(() {
+      _displayMonth = DateTime(
+        _displayMonth.year,
+        _displayMonth.month + delta,
+      );
+    });
+  }
+
+  /// Month selection, newest first. Replaces the bare dropdown so the range on
+  /// offer is visible at a glance and one tap is enough to jump.
+  Future<void> _pickMonth(Color accent) async {
+    final options = <DateTime>[
+      for (var i = 0; i < _historyMonths; i++)
+        DateTime(today.year, today.month - i),
+    ];
+    final picked = await showModalBottomSheet<DateTime>(
+      context: context,
+      useRootNavigator: false,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Theme(
+        data: _darkTheme(accent),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF17141C),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border(top: BorderSide(color: Colors.white12)),
+          ),
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Jump to month',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'The last $_historyMonths months',
+                  style: const TextStyle(fontSize: 11.5, color: Colors.white38),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final month in options) _monthChip(ctx, month, accent),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _displayMonth = DateTime(picked.year, picked.month));
+  }
+
+  Widget _monthChip(BuildContext ctx, DateTime month, Color accent) {
+    final selected =
+        month.year == _displayMonth.year && month.month == _displayMonth.month;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => Navigator.of(ctx).pop(month),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected
+              ? accent.withValues(alpha: 0.20)
+              : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? accent.withValues(alpha: 0.60)
+                : Colors.white12,
+          ),
+        ),
+        child: Text(
+          '${_monthShort.format(month)} ${month.year}',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? accent : Colors.white70,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Building blocks
+  // ---------------------------------------------------------------------------
+
+  static String _shortNumber(double value) =>
+      value % 1 == 0 ? value.toInt().toString() : value.toString();
+
+  static String _typeLabel(HabitType type) => switch (type) {
+    HabitType.yesNo => 'Yes / No',
+    HabitType.count => 'Count',
+    HabitType.measure => 'Measure',
+  };
+
+  ThemeData _darkTheme(Color accent) {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      fontFamily: 'JetBrainsMono',
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: accent,
+        brightness: Brightness.dark,
+      ),
+      scaffoldBackgroundColor: const Color(0xFF0F0D12),
+    );
+  }
+
   Widget _card({required Color accent, required Widget child}) {
     return Container(
       width: double.infinity,
@@ -197,6 +350,398 @@ class _HabitDetailsScreenState extends State<HabitDetailsScreen> {
         border: Border.all(color: Colors.white12),
       ),
       child: child,
+    );
+  }
+
+  Widget _pill(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
+          color: Colors.white70,
+        ),
+      ),
+    );
+  }
+
+  /// Icon, name and description on one baseline-friendly row, followed by two
+  /// quiet pills that say how the habit is tracked and what its target is.
+  Widget _header(Habit habit, Color accent) {
+    final description = habit.description?.trim();
+    final goal = habit.goalValue;
+    final unit = habit.unit?.trim();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accent.withValues(alpha: 0.24),
+            accent.withValues(alpha: 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: accent.withValues(alpha: 0.32)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.20),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: accent.withValues(alpha: 0.50)),
+            ),
+            child: Icon(
+              habitIconData(habit.iconCodePoint),
+              color: accent,
+              size: 31,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  habit.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 21,
+                    height: 1.15,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  (description == null || description.isEmpty)
+                      ? 'No description'
+                      : description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.35,
+                    color: (description == null || description.isEmpty)
+                        ? Colors.white24
+                        : Colors.white60,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _pill(_typeLabel(habit.type)),
+                    if (goal != null && goal > 0)
+                      _pill(
+                        'Target ${_shortNumber(goal)}'
+                        '${unit == null || unit.isEmpty ? '' : ' $unit'}',
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Month stepper on the left, "Today" on the right. The month name in the
+  /// middle is tappable and opens the month picker.
+  Widget _calendarHeader(Color accent) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.045),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Row(
+              children: [
+                _navArrow(
+                  Icons.chevron_left,
+                  _canGoPrev,
+                  () => _stepMonth(-1),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _pickMonth(accent),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _monthTitle.format(_displayMonth),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.expand_more,
+                          size: 15,
+                          color: Colors.white38,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                _navArrow(
+                  Icons.chevron_right,
+                  _canGoNext,
+                  () => _stepMonth(1),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _selectDate(today),
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: accent.withValues(alpha: 0.45)),
+            ),
+            child: Text(
+              'Today',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: accent,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _navArrow(IconData icon, bool enabled, VoidCallback onTap) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: enabled ? onTap : null,
+      child: SizedBox(
+        width: 38,
+        height: 42,
+        child: Icon(
+          icon,
+          size: 20,
+          color: enabled ? Colors.white70 : Colors.white24,
+        ),
+      ),
+    );
+  }
+
+  /// How the shown month is going: days logged, and — when the habit has a
+  /// target — how many of them reached it.
+  Widget _monthSummary(Habit habit, Color accent) {
+    final year = _displayMonth.year;
+    final month = _displayMonth.month;
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final goal = habit.goalValue;
+    final hasGoal = goal != null && goal > 0;
+
+    var logged = 0;
+    var met = 0;
+    for (var day = 1; day <= daysInMonth; day++) {
+      final key = dateKeyFor(DateTime(year, month, day));
+      if (key.compareTo(todayDateKey) > 0) continue;
+      final value = _entries[key];
+      if (value == null || value <= 0) continue;
+      logged++;
+      if (hasGoal && value >= goal) met++;
+    }
+
+    final text = habit.type == HabitType.yesNo
+        ? '$logged of $daysInMonth days marked'
+        : hasGoal
+        ? '$logged logged · $met met target'
+        : '$logged days logged';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: accent,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: Colors.white54,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: daysInMonth == 0 ? 0 : (logged / daysInMonth).clamp(0.0, 1.0),
+            minHeight: 5,
+            backgroundColor: Colors.white10,
+            valueColor: AlwaysStoppedAnimation<Color>(accent),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// One figure in the record grid: small icon and label on top, the value
+  /// underneath. The number is what the eye should land on.
+  Widget _statTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: accent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.white54,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 19,
+              height: 1,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The habit's age, as the date it began plus the days it has covered.
+  Widget _sinceTile(Habit habit, Color accent) {
+    final days = daysBetween(habit.createdAt, today) + 1;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: accent.withValues(alpha: 0.26)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.calendar_today_outlined, size: 15, color: accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Since started',
+                  style: TextStyle(fontSize: 11, color: Colors.white54),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _startLabel.format(habit.createdAt),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$days',
+                style: TextStyle(
+                  fontSize: 19,
+                  height: 1,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                days == 1 ? 'day' : 'days',
+                style: const TextStyle(fontSize: 11, color: Colors.white54),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -212,60 +757,17 @@ class _HabitDetailsScreenState extends State<HabitDetailsScreen> {
     final missedDays = daysBetween(habit.createdAt, today) + 1 - completions;
     final currentStreak = _streakToToday(markedKeys);
     final bestStreak = _longestRun(markedSinceStart);
-    final shownMonth = DateTime(_displayMonth.year, _displayMonth.month);
-    final canGoNext = DateTime(
-      _displayMonth.year,
-      _displayMonth.month + 1,
-    ).isBefore(DateTime(today.year, today.month + 1));
-    // Keep the dropdown's value inside its item list (24 months of history).
-    final canGoPrev = shownMonth.isAfter(
-      DateTime(today.year, today.month - 23),
-    );
+    final isMeasured = habit.type != HabitType.yesNo;
     void onSelectDate(DateTime date) => _tapDate(habit, date);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
       children: [
-        Row(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                habitIconData(habit.iconCodePoint),
-                color: accent,
-                size: 28,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    habit.name,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    (habit.description == null || habit.description!.isEmpty)
-                        ? 'No Description'
-                        : habit.description!,
-                    style: const TextStyle(fontSize: 14, color: Colors.white54),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
+        _header(habit, accent),
+        const SizedBox(height: 16),
+
+        // History: a contribution heatmap for yes/no habits, a daily bar
+        // chart for the measured ones.
         _card(
           accent: accent,
           child: habit.type == HabitType.yesNo
@@ -285,125 +787,101 @@ class _HabitDetailsScreenState extends State<HabitDetailsScreen> {
                 ),
         ),
         const SizedBox(height: 14),
+
+        // Month view.
         _card(
           accent: accent,
           child: Column(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: '${_displayMonth.year}-${_displayMonth.month}',
-                        dropdownColor: Color.lerp(accent, Colors.black, 0.75),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        items: _monthOptions(),
-                        onChanged: (value) {
-                          if (value == null) return;
-                          final parts = value.split('-');
-                          setState(() {
-                            _displayMonth = DateTime(
-                              int.parse(parts[0]),
-                              int.parse(parts[1]),
-                            );
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Previous month',
-                    onPressed: canGoPrev
-                        ? () => setState(() {
-                            _displayMonth = DateTime(
-                              _displayMonth.year,
-                              _displayMonth.month - 1,
-                            );
-                          })
-                        : null,
-                    icon: const Icon(Icons.chevron_left, color: Colors.white70),
-                  ),
-                  IconButton(
-                    tooltip: 'Next month',
-                    onPressed: canGoNext
-                        ? () => setState(() {
-                            _displayMonth = DateTime(
-                              _displayMonth.year,
-                              _displayMonth.month + 1,
-                            );
-                          })
-                        : null,
-                    icon: const Icon(
-                      Icons.chevron_right,
-                      color: Colors.white70,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => _selectDate(today),
-                    child: const Text('Today'),
-                  ),
-                ],
-              ),
+              _calendarHeader(accent),
+              const SizedBox(height: 14),
               MonthCalendar(
                 displayMonth: _displayMonth,
                 markedKeys: markedKeys,
                 selectedDateKey: _selectedDateKey,
                 accent: accent,
                 onDayTap: onSelectDate,
+                // Measured habits print each day's value against the target.
+                entries: isMeasured ? _entries : null,
+                goalValue: habit.goalValue,
               ),
+              const SizedBox(height: 14),
+              _monthSummary(habit, accent),
             ],
           ),
         ),
         const SizedBox(height: 14),
+
+        // All-time record.
         _card(
           accent: accent,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'All-time record',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              Row(
+                children: [
+                  Icon(Icons.insights, size: 17, color: accent),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'All-time record',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 3),
               const Text(
                 'A day counts when the chart or calendar marks it',
                 style: TextStyle(fontSize: 11, color: Colors.white38),
               ),
-              const SizedBox(height: 6),
-              _fact(
-                icon: Icons.whatshot,
-                label: 'Current streak',
-                value: _days(currentStreak),
-                showDivider: true,
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _statTile(
+                      icon: Icons.whatshot,
+                      label: 'Current streak',
+                      value: '$currentStreak',
+                      accent: accent,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _statTile(
+                      icon: Icons.emoji_events_outlined,
+                      label: 'Longest streak',
+                      value: '$bestStreak',
+                      accent: accent,
+                    ),
+                  ),
+                ],
               ),
-              _fact(
-                icon: Icons.calendar_today_outlined,
-                label: 'Since start',
-                value: _startLabel.format(habit.createdAt),
-                showDivider: true,
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _statTile(
+                      icon: Icons.check_circle_outline,
+                      label: 'Completions',
+                      value: '$completions',
+                      accent: accent,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _statTile(
+                      icon: Icons.error_outline,
+                      label: 'Missed days',
+                      value: '$missedDays',
+                      accent: accent,
+                    ),
+                  ),
+                ],
               ),
-              _fact(
-                icon: Icons.check_circle_outline,
-                label: 'Completions',
-                value: '$completions times',
-                showDivider: true,
-              ),
-              _fact(
-                icon: Icons.error_outline,
-                label: 'Missed days',
-                value: _days(missedDays),
-                showDivider: true,
-              ),
-              _fact(
-                icon: Icons.emoji_events_outlined,
-                label: 'Longest streak',
-                value: _days(bestStreak),
-                showDivider: false,
-              ),
+              const SizedBox(height: 10),
+              _sinceTile(habit, accent),
             ],
           ),
         ),
@@ -411,85 +889,13 @@ class _HabitDetailsScreenState extends State<HabitDetailsScreen> {
     );
   }
 
-  /// One line of the record: the figure's name on the left, its size on the
-  /// right. The values wear no colour — this card reports, it does not judge.
-  Widget _fact({
-    required IconData icon,
-    required String label,
-    required String value,
-    required bool showDivider,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 9),
-      decoration: showDivider
-          ? const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.white12)),
-            )
-          : null,
-      child: Row(
-        children: [
-          Icon(icon, size: 15, color: Colors.white54),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, color: Colors.white70),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static String _days(int count) => '$count ${count == 1 ? 'day' : 'days'}';
-
-  List<DropdownMenuItem<String>> _monthOptions() {
-    // 24 months of history plus the current month.
-    final items = <DropdownMenuItem<String>>[];
-    for (var i = 23; i >= 0; i--) {
-      final month = DateTime(
-        today.year,
-        today.month - i,
-      ); // day-component arithmetic normalizes years
-      final label = _monthTitle.format(month);
-      items.add(
-        DropdownMenuItem(
-          value: '${month.year}-${month.month}',
-          child: Text(label),
-        ),
-      );
-    }
-    return items;
-  }
-
   @override
   Widget build(BuildContext context) {
     final habit = _habit;
     final accent = habit == null ? Colors.deepPurple : Color(habit.color);
-    final darkTheme = ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      fontFamily: 'JetBrainsMono',
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: accent,
-        brightness: Brightness.dark,
-      ),
-      scaffoldBackgroundColor: const Color(0xFF0F0D12),
-    );
 
     return Theme(
-      data: darkTheme,
+      data: _darkTheme(accent),
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.transparent,
