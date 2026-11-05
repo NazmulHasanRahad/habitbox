@@ -5,9 +5,14 @@ import 'package:get/get.dart';
 import 'controllers/habit_controller.dart';
 import 'controllers/task_controller.dart';
 import 'screens/root_screen.dart';
+import 'services/notification_service.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Done before the controllers exist, so the first load of habits can hand
+  // its reminders straight to a ready service.
+  await NotificationService.instance.initialize();
 
   Get.put(HabitController());
   Get.put(TaskController());

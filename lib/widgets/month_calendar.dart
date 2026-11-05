@@ -1,10 +1,10 @@
+
 import 'package:flutter/material.dart';
 
 import '../utils/date_key.dart';
 
-/// Monday-start monthly grid with adjacent-month days, marked-date
-/// highlighting, today border and a distinct selected day.
-/// Future days are shown but cannot be selected.
+/// Premium Monday-start monthly calendar.
+/// Existing date logic and callbacks are preserved.
 class MonthCalendar extends StatelessWidget {
   const MonthCalendar({
     super.key,
@@ -23,39 +23,51 @@ class MonthCalendar extends StatelessWidget {
   final ValueChanged<DateTime> onDayTap;
 
   static const List<String> _weekdayLabels = [
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
+    'MON',
+    'TUE',
+    'WED',
+    'THU',
+    'FRI',
+    'SAT',
+    'SUN',
   ];
 
   @override
   Widget build(BuildContext context) {
     final first = DateTime(displayMonth.year, displayMonth.month);
-    // Day 0 of the next month rolls back to the last day of this month.
-    final daysInMonth = DateTime(displayMonth.year, displayMonth.month + 1, 0).day;
-    final leading = first.weekday - 1; // Monday-start offset
-    final weekCount =
-        (leading + daysInMonth) ~/ 7 +
+    final daysInMonth =
+        DateTime(displayMonth.year, displayMonth.month + 1, 0).day;
+
+    final leading = first.weekday - 1;
+
+    final weekCount = (leading + daysInMonth) ~/ 7 +
         ((leading + daysInMonth) % 7 == 0 ? 0 : 1);
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
+        // Weekday header
         Row(
           children: _weekdayLabels.map((label) {
             return Expanded(
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: Colors.white54),
+              child: Center(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.7,
+                    color: Colors.white38,
+                  ),
+                ),
               ),
             );
           }).toList(),
         ),
-        const SizedBox(height: 6),
+
+        const SizedBox(height: 12),
+
+        // Monthly date grid
         ...List.generate(weekCount, (week) {
           return Row(
             children: List.generate(7, (slot) {
@@ -64,7 +76,10 @@ class MonthCalendar extends StatelessWidget {
                 first.month,
                 week * 7 + slot - leading + 1,
               );
-              return Expanded(child: _dayCell(date, first));
+
+              return Expanded(
+                child: _dayCell(date, first),
+              );
             }),
           );
         }),
@@ -74,37 +89,57 @@ class MonthCalendar extends StatelessWidget {
 
   Widget _dayCell(DateTime date, DateTime first) {
     final key = dateKeyFor(date);
-    final inMonth = date.month == first.month && date.year == first.year;
+
+    final inMonth =
+        date.month == first.month && date.year == first.year;
+
     final isFuture = key.compareTo(todayDateKey) > 0;
     final isToday = key == todayDateKey;
     final isSelected = key == selectedDateKey;
     final isMarked = markedKeys.contains(key);
 
+    final isActive = inMonth && !isFuture;
+
     final Color textColor;
+
     if (!inMonth || isFuture) {
-      textColor = Colors.white24;
-    } else if (isMarked || isSelected || isToday) {
+      textColor = Colors.white.withValues(alpha: 0.16);
+    } else if (isSelected) {
       textColor = accent;
-    } else {
+    } else if (isToday) {
       textColor = Colors.white;
+    } else {
+      textColor = Colors.white.withValues(alpha: 0.88);
     }
+
+    final Color? backgroundColor = isSelected
+        ? accent.withValues(alpha: 0.17)
+        : isMarked && inMonth && !isFuture
+        ? accent.withValues(alpha: 0.09)
+        : null;
+
+    final Border? border = isSelected
+        ? Border.all(
+      color: accent.withValues(alpha: 0.85),
+      width: 1.2,
+    )
+        : isToday
+        ? Border.all(
+      color: Colors.white.withValues(alpha: 0.48),
+      width: 1.1,
+    )
+        : null;
 
     return GestureDetector(
       onTap: isFuture ? null : () => onDayTap(date),
+      behavior: HitTestBehavior.opaque,
       child: Container(
-        height: 52,
+        height: 48,
         margin: const EdgeInsets.all(2),
         decoration: BoxDecoration(
-          color: isSelected || (isMarked && inMonth)
-              ? accent.withValues(alpha: 0.18)
-              : null,
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(12),
-          border: isToday || isSelected
-              ? Border.all(
-                  color: isSelected ? accent : Colors.white38,
-                  width: 1.4,
-                )
-              : null,
+          border: border,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -113,26 +148,25 @@ class MonthCalendar extends StatelessWidget {
               '${date.day}',
               style: TextStyle(
                 color: textColor,
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: isToday || isSelected
                     ? FontWeight.w700
-                    : FontWeight.w400,
+                    : FontWeight.w500,
               ),
             ),
-            SizedBox(
-              height: 8,
-              child: isMarked && inMonth && !isFuture
-                  ? Center(
-                      child: Container(
-                        width: 4,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: accent,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    )
-                  : null,
+
+            const SizedBox(height: 4),
+
+            // Marked date indicator
+            Container(
+              width: 4,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isMarked && isActive
+                    ? accent
+                    : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
             ),
           ],
         ),

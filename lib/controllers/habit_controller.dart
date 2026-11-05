@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../models/habit.dart';
 import '../models/habit_entry.dart';
 import '../repositories/habit_repository.dart';
+import '../services/notification_service.dart';
 import '../services/view_preferences.dart';
 import '../utils/date_key.dart';
 
@@ -30,7 +31,9 @@ class HabitController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    loadHabits();
+    // Reminders are re-armed from the stored habits once they are loaded, so
+    // a schedule lost between launches comes back on its own.
+    loadHabits().then((_) => NotificationService.instance.syncAll(habits));
     ViewPreferences.read().then((value) {
       if (value != null) {
         compactView.value = value == ViewPreferences.viewCompact;
@@ -137,14 +140,18 @@ class HabitController extends GetxController {
 
   Future<void> addHabit(Habit habit) async {
     // New habits go to the bottom of the home list.
-    await _repository.insertHabit(habit.copyWith(sortOrder: habits.length));
+    final id = await _repository.insertHabit(
+      habit.copyWith(sortOrder: habits.length),
+    );
     await loadHabits();
+    await NotificationService.instance.syncHabit(habit.copyWith(id: id));
   }
 
   /// Persists edits to a habit's settings. Entries are untouched.
   Future<void> updateHabit(Habit habit) async {
     await _repository.updateHabit(habit);
     await loadHabits();
+    await NotificationService.instance.syncHabit(habit);
   }
 
   /// Permanently removes a habit; its entries are removed by ON DELETE CASCADE.
@@ -153,6 +160,7 @@ class HabitController extends GetxController {
     entries.remove(id);
     entries.refresh();
     await loadHabits();
+    await NotificationService.instance.cancelHabit(id);
   }
 
   /// Moves a habit to a new position and persists the full order.

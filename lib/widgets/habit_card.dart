@@ -59,8 +59,8 @@ class HabitMarkButton extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          width: 50,
-          height: 44,
+          width: 44,
+          height: 38,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: done
@@ -101,8 +101,8 @@ class HabitCardHeader extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 38,
-          height: 38,
+          width: 34,
+          height: 34,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(10),

@@ -18,12 +18,12 @@ class YesNoHabitBody extends StatelessWidget {
 
   /// 7 cells + 6 gaps = 108px, exactly the count/measure chart area height,
   /// so both card types render at the same total height.
-  static const double cellSize = 6;
+  static const double cellSize = 6.5;
   static const double cellGap = 1.5;
 
   /// A full year of weeks (matches [HabitController.historyDays]) so the
   /// strip always overflows the card and stays scrollable.
-  static const int weeks = 52;
+  static const int weeks = 60;
 
   /// Today's mark control; the shared shell keeps it identical to the
   /// count/measure card's completed state.
@@ -60,7 +60,7 @@ class YesNoHabitBody extends StatelessWidget {
             trailing: _markButton(controller),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 5),
         SizedBox(
           height: cellSize * 7 + cellGap * 6,
           child: Obx(() {

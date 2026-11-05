@@ -15,7 +15,7 @@ class DailyBarChart extends StatelessWidget {
     required this.accent,
     required this.selectedDateKey,
     required this.onSelect,
-    this.windowDays = 120,
+    this.windowDays = 365,
   });
 
   final Habit habit;
@@ -29,8 +29,8 @@ class DailyBarChart extends StatelessWidget {
   final int windowDays;
 
   // Compact chart dimensions
-  static const double barWidth = 12;
-  static const double barGap = 5;
+  static const double barWidth = 8;
+  static const double barGap = 3;
   static const double chartHeight = 64;
   static const double valueLabelHeight = 12;
   static const double dayLabelHeight = 20;

@@ -22,9 +22,9 @@ class HabitHeatmap extends StatelessWidget {
   final String? selectedDateKey;
   final ValueChanged<DateTime> onSelect;
 
-  static const double cellSize = 10;
+  static const double cellSize = 8;
   static const double cellGap = 2;
-  static const int weeks = 52;
+  static const int weeks = 80;
 
   static final DateFormat _monthLabel = DateFormat('MMM');
 
@@ -67,7 +67,7 @@ class HabitHeatmap extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 34,
+            width: 20,
             height: 16 + cellSize * 7 + cellGap * 6,
             child: Padding(
               // Same 16px month-label band as the columns, so every label sits
@@ -84,7 +84,7 @@ class HabitHeatmap extends StatelessWidget {
                         child: Text(
                           _weekdayLabels[row],
                           style: const TextStyle(
-                            fontSize: 10,
+                            fontSize: 8,
                             height: 1,
                             color: Colors.white54,
                           ),

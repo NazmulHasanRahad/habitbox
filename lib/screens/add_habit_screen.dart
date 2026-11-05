@@ -3,14 +3,15 @@ import 'package:get/get.dart';
 
 import '../controllers/habit_controller.dart';
 import '../models/habit.dart';
+import '../services/notification_service.dart';
 import '../utils/habit_icon.dart';
 import '../widgets/app_bar_shell.dart';
 import 'icon_picker_screen.dart';
 
 /// Full-screen "Add habit" form opened from the Home Screen FAB.
 /// Pass [initialHabit] to reuse it as the Edit Habit form.
-/// Sections: Habit Icon -> Habit Name -> Habit Type -> Goal Settings -> Color.
-/// Saves to SQLite through [HabitController] and closes on success.
+/// Sections: Habit Icon -> Habit Name -> Habit Type -> Goal Settings -> Reminder
+/// -> Color. Saves to SQLite through [HabitController] and closes on success.
 class AddHabitScreen extends StatefulWidget {
   const AddHabitScreen({super.key, this.initialHabit});
 
@@ -79,12 +80,19 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   final TextEditingController _goalController = TextEditingController();
   final TextEditingController _unitController = TextEditingController();
 
+  /// Time a freshly switched-on reminder starts at, so the common case is one
+  /// tap. The user can change it straight after.
+  static const int _defaultReminderMinutes = 9 * 60;
+
   HabitType _type = HabitType.yesNo;
   int _colorValue = _colors[0];
   int _iconCodePoint = Icons.monitor_heart.codePoint;
   String? _nameError;
   String? _goalError;
   bool _saving = false;
+
+  /// Reminder time as minutes since midnight, or null when the habit has none.
+  int? _reminderMinutes;
 
   Habit? get _initial => widget.initialHabit;
 
@@ -108,6 +116,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
     // color even when it is not part of the current palette.
     _colorValue = initial.color;
     _iconCodePoint = initial.iconCodePoint;
+    _reminderMinutes = initial.reminderMinutes;
   }
 
   @override
@@ -138,6 +147,56 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
     if (picked == null || !mounted) return;
     setState(() => _iconCodePoint = picked);
   }
+
+  /// Switching the reminder on asks for the notification permission first, so
+  /// a refusal is reported here instead of leaving a reminder that can never
+  /// fire. Cancelling the time picker leaves the reminder off.
+  Future<void> _onReminderToggled(bool on) async {
+    if (!on) {
+      setState(() => _reminderMinutes = null);
+      return;
+    }
+
+    if (!NotificationService.instance.isReady) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Habit reminders are not ready. Please restart the app and try again.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final granted = await NotificationService.instance.requestPermission();
+    if (!mounted) return;
+    if (!granted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'HabitBox cannot post notifications. Allow them in your device '
+            'settings, then switch this on again.',
+          ),
+        ),
+      );
+      return;
+    }
+    await _pickReminderTime(_defaultReminderMinutes);
+  }
+
+  /// Opens the clock. [current] is preserved when the user backs out.
+  Future<void> _pickReminderTime(int current) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _reminderMinutes = picked.hour * 60 + picked.minute);
+  }
+
+  /// The reminder time in the device's own 12/24-hour convention.
+  String _timeLabel(BuildContext context, int minutes) =>
+      TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60).format(context);
 
   double? _parsedGoal() {
     final text = _goalController.text.trim();
@@ -203,6 +262,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
         createdAt: initial?.createdAt ?? DateTime.now(),
         sortOrder: initial?.sortOrder ?? 0,
         description: descriptionText.isEmpty ? null : descriptionText,
+        reminderMinutes: _reminderMinutes,
       );
       if (initial == null) {
         await controller.addHabit(habit);
@@ -428,6 +488,76 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
     );
   }
 
+  /// One row for the whole reminder setting: a switch to turn it on and off,
+  /// and the time itself, which opens the clock when tapped. Both the label and
+  /// the tap target stay quiet while the reminder is off.
+  Widget _reminderCard(BuildContext context, ThemeData theme) {
+    final scheme = theme.colorScheme;
+    final minutes = _reminderMinutes;
+    final enabled = minutes != null;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: enabled ? () => _pickReminderTime(minutes) : null,
+              child: Row(
+                children: [
+                  Icon(
+                    enabled
+                        ? Icons.notifications_active_outlined
+                        : Icons.notifications_none,
+                    size: 20,
+                    color: enabled ? _accent : scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          enabled
+                              ? 'Every day at ${_timeLabel(context, minutes)}'
+                              : 'No reminder',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: enabled
+                                ? scheme.onSurface
+                                : scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          enabled
+                              ? 'Tap to change the time'
+                              : 'Switch on for a daily nudge',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Switch(value: enabled, onChanged: _onReminderToggled),
+        ],
+      ),
+    );
+  }
+
   Widget _colorGrid(ThemeData theme) {
     return Wrap(
       spacing: 10,
@@ -558,6 +688,13 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
               ),
             ),
           ],
+          const SizedBox(height: 24),
+          _section(
+            theme,
+            'Reminder',
+            hint: 'One notification a day, at the time you pick',
+          ),
+          _reminderCard(context, theme),
           const SizedBox(height: 24),
           _section(theme, 'Color'),
           _colorGrid(theme),

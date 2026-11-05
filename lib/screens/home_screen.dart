@@ -10,6 +10,7 @@ import '../widgets/habit_card.dart';
 import 'add_habit_screen.dart';
 import 'analytics_screen.dart';
 import 'habit_details_screen.dart';
+import 'menu_screen.dart';
 
 /// Home screen: scrollable list of habit cards, app-bar filter row,
 /// empty state and add FAB.
@@ -46,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       return Scaffold(
         appBar: AppBar(
+          leading: _MenuButton(onPressed: _openMenu),
           title: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,6 +135,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openAddHabit() => Get.to(() => const AddHabitScreen());
 
   void _openAnalytics() => Get.to(() => const AnalyticsScreen());
+
+  void _openMenu() => Get.to(() => const MenuScreen());
 }
 
 class _Body extends StatelessWidget {
@@ -272,6 +276,31 @@ class _ViewModeButton extends StatelessWidget {
           compact ? Icons.view_list : Icons.dashboard,
           size: AppBarShell.iconSize,
           color: compact ? scheme.primary : appBarIconColor(scheme),
+        ),
+      ),
+    );
+  }
+}
+
+/// App-bar leading control that opens the top-level menu.
+///
+/// Centred inside the app bar's tight leading slot so it keeps the shell's own
+/// 40dp size, sitting at the same weight as the actions on the right.
+class _MenuButton extends StatelessWidget {
+  const _MenuButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: AppBarShell(
+        tooltip: 'Menu',
+        onTap: onPressed,
+        child: Icon(
+          Icons.menu,
+          size: AppBarShell.iconSize,
+          color: appBarIconColor(Theme.of(context).colorScheme),
         ),
       ),
     );

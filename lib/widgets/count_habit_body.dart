@@ -16,10 +16,10 @@ class CountHabitBody extends StatefulWidget {
   final Habit habit;
   final HabitPalette palette;
 
-  static const int visibleDays = 120;
-  static const double barWidth = 12;
+  static const int visibleDays = 150;
+  static const double barWidth = 10;
   static const double barGap = 2;
-  static const double chartHeight = 60;
+  static const double chartHeight = 52;
 
   /// 20% rounder than the previous 9px, still under half the bar width so the
   /// base stays square-ish when a bar is short.
@@ -72,15 +72,15 @@ class _CountHabitBodyState extends State<CountHabitBody> {
       child: isComplete
           ? HabitMarkButton.doneIcon(palette)
           : SizedBox(
-              width: 34,
-              height: 34,
+              width: 30,
+              height: 30,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   if (hasGoal)
                     SizedBox(
-                      width: 34,
-                      height: 34,
+                      width: 30,
+                      height: 30,
                       child: CircularProgressIndicator(
                         value: progress,
                         strokeWidth: 3.5,
@@ -91,8 +91,8 @@ class _CountHabitBodyState extends State<CountHabitBody> {
                     )
                   else
                     Container(
-                      width: 34,
-                      height: 34,
+                      width: 30,
+                      height: 30,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(color: palette.muted, width: 3.5),
@@ -151,7 +151,7 @@ class _CountHabitBodyState extends State<CountHabitBody> {
         ),
         const SizedBox(height: 5),
         SizedBox(
-          height: CountHabitBody.chartHeight + 22,
+          height: CountHabitBody.chartHeight + 15,
           child: Obx(() {
             final values = controller.entries[habit.id] ?? const {};
             // Scale is capped by the goal (when set) or the biggest saved
@@ -236,7 +236,7 @@ class _CountHabitBodyState extends State<CountHabitBody> {
                             color: isToday
                                 ? palette.foreground
                                 : palette.foregroundSoft,
-                            fontSize: 11,
+                            fontSize: 7,
                             fontWeight: isToday
                                 ? FontWeight.w700
                                 : FontWeight.w400,

@@ -29,6 +29,7 @@ class Habit {
     required this.createdAt,
     this.sortOrder = 0,
     this.description,
+    this.reminderMinutes,
   });
 
   final int? id;
@@ -49,6 +50,10 @@ class Habit {
   /// Optional free-text note about the habit.
   final String? description;
 
+  /// Daily reminder time as minutes since midnight (0-1439); null means the
+  /// habit has no reminder. The same time repeats every day.
+  final int? reminderMinutes;
+
   static Habit fromMap(Map<String, Object?> map) {
     return Habit(
       id: map['id'] as int?,
@@ -63,6 +68,7 @@ class Habit {
       ),
       sortOrder: (map['sort_order'] as int?) ?? 0,
       description: map['description'] as String?,
+      reminderMinutes: map['reminder_minutes'] as int?,
     );
   }
 
@@ -77,6 +83,7 @@ class Habit {
       'created_at': createdAt.millisecondsSinceEpoch,
       'sort_order': sortOrder,
       'description': description,
+      'reminder_minutes': reminderMinutes,
     };
     if (includeId && id != null) {
       map['id'] = id;
@@ -95,6 +102,7 @@ class Habit {
     DateTime? createdAt,
     int? sortOrder,
     String? description,
+    int? reminderMinutes,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -107,6 +115,7 @@ class Habit {
       createdAt: createdAt ?? this.createdAt,
       sortOrder: sortOrder ?? this.sortOrder,
       description: description ?? this.description,
+      reminderMinutes: reminderMinutes ?? this.reminderMinutes,
     );
   }
 }
