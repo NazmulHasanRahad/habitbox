@@ -437,62 +437,6 @@ class _TaskStatsScreenState extends State<TaskStatsScreen> {
     );
   }
 
-  Widget _legend(ColorScheme scheme) {
-    final palette = TaskPalette(scheme);
-    final isDark = scheme.brightness == Brightness.dark;
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 6,
-      alignment: WrapAlignment.end,
-      children: [
-        _legendChip(scheme, Colors.white, 'Today'),
-        _legendChip(scheme, palette.danger, 'Under 50%'),
-        _legendChip(scheme, palette.caution, '50-99%'),
-        _legendChip(scheme, palette.success, 'All done'),
-        _legendChip(scheme, _track(scheme, isDark), 'Not done'),
-      ],
-    );
-  }
-
-  Widget _legendChip(ColorScheme scheme, Color color, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: scheme.onSurface.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: scheme.onSurface.withValues(alpha: 0.06)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            // Every swatch carries a hairline, or the palest of them — today's
-            // white, an empty day's grey — would read as a hole in the chip.
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: scheme.onSurface.withValues(alpha: 0.16),
-              ),
-            ),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 9.5,
-              height: 1.2,
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// One bar per day: as tall as the tasks that day carried, filled as far as
   /// the record got, against the busiest day of the window.
   Widget _chart(TaskStats stats, ColorScheme scheme) {

@@ -6,7 +6,6 @@ import 'package:habitbox/models/habit.dart';
 import 'package:habitbox/utils/date_key.dart';
 import 'package:habitbox/utils/habit_palette.dart';
 import 'package:habitbox/widgets/count_habit_body.dart';
-import 'package:habitbox/widgets/habit_card.dart';
 
 void main() {
   final habit = Habit(
@@ -42,24 +41,18 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('incomplete goal shows a progress ring with an add icon', (
+  testWidgets('incomplete goal shows the progress ring with a + icon', (
     tester,
   ) async {
     await pumpCard(tester, 12);
 
     expect(find.text('12/20 pages'), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(
-      tester
-          .widget<CircularProgressIndicator>(
-            find.byType(CircularProgressIndicator).last,
-          )
-          .value,
-      0.6,
-    );
     expect(find.byIcon(Icons.add), findsOneWidget);
-    expect(find.text('12'), findsNothing);
-    expect(find.byIcon(Icons.check_circle), findsNothing);
+    expect(find.byIcon(Icons.check), findsNothing);
+    final ring = tester.widget<CircularProgressIndicator>(
+      find.byType(CircularProgressIndicator),
+    );
+    expect(ring.value, closeTo(0.6, 0.001));
   });
 
   testWidgets('reaching the goal swaps the ring for the yes/no card check', (
@@ -70,12 +63,8 @@ void main() {
     expect(find.byIcon(Icons.check), findsOneWidget);
     expect(find.byIcon(Icons.add), findsNothing);
     expect(find.text('20/20 pages'), findsOneWidget);
-    // Only the bar-chart scroll physics indicator, no progress ring.
+    // No progress ring; the button fills with the accent color.
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(
-      tester.widget<HabitMarkButton>(find.byType(HabitMarkButton)).done,
-      isTrue,
-    );
   });
 
   testWidgets('a habit without a goal never shows completion', (tester) async {
@@ -110,10 +99,12 @@ void main() {
 
     expect(find.byIcon(Icons.check_circle), findsNothing);
     expect(find.text('1.5 litre'), findsOneWidget);
-    // No goal -> plain circle with the add icon, no ring, no number.
+    // No goal -> the ring stays empty but the + button remains.
     expect(find.byIcon(Icons.add), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(find.text('1.5'), findsNothing);
+    final ring = tester.widget<CircularProgressIndicator>(
+      find.byType(CircularProgressIndicator),
+    );
+    expect(ring.value, 0.0);
   });
 
   testWidgets('tapping the ring opens the value sheet, not Details', (

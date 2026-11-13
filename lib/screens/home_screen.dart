@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../controllers/habit_controller.dart';
+import '../controllers/settings_controller.dart';
 import '../models/habit.dart';
 import '../widgets/app_bar_shell.dart';
 import '../widgets/compact_habit_row.dart';
@@ -44,6 +45,11 @@ class _HomeScreenState extends State<HomeScreen> {
       final visible = List<Habit>.from(controller.visibleHabits);
       final hasHabits = controller.habits.isNotEmpty;
       final compact = controller.compactView.value;
+      // With the task system hidden the view switch lives in the nav pill's
+      // Task slot instead of the app bar.
+      final tasksEnabled = Get.isRegistered<SettingsController>()
+          ? Get.find<SettingsController>().tasksEnabled.value
+          : true;
 
       return Scaffold(
         appBar: AppBar(
@@ -85,10 +91,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ? [
                   _AnalyticsButton(onPressed: _openAnalytics),
                   _FilterButton(controller: controller),
-                  _ViewModeButton(
-                    compact: compact,
-                    onPick: controller.setViewMode,
-                  ),
+                  if (tasksEnabled)
+                    _ViewModeButton(
+                      compact: compact,
+                      onPick: controller.setViewMode,
+                    ),
                   AddAppBarButton(
                     tooltip: 'Add habit',
                     onPressed: _openAddHabit,

@@ -16,10 +16,11 @@ class YesNoHabitBody extends StatelessWidget {
   final Habit habit;
   final HabitPalette palette;
 
-  /// 7 cells + 6 gaps = 108px, exactly the count/measure chart area height,
+  /// 7 cells + 6 gaps, sized to match the count/measure chart area height
   /// so both card types render at the same total height.
-  static const double cellSize = 6.5;
-  static const double cellGap = 1.5;
+  static const double cellSize = 10;
+  static const double cellGap = 2.5;
+
 
   /// A full year of weeks (matches [HabitController.historyDays]) so the
   /// strip always overflows the card and stays scrollable.
@@ -37,8 +38,8 @@ class YesNoHabitBody extends StatelessWidget {
       child: done
           ? HabitMarkButton.doneIcon(palette)
           : Icon(
-              Icons.circle_outlined,
-              size: 20,
+              Icons.check,
+              size: 22,
               color: palette.foregroundSoft,
             ),
     );
@@ -112,10 +113,13 @@ class YesNoHabitBody extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: doneKeys.contains(key)
                                 ? palette.bright
-                                : palette.muted,
-                            borderRadius: BorderRadius.circular(4),
+                                : palette.muted.withAlpha(10),
+                            borderRadius: BorderRadius.circular(3),
                             border: isToday
-                                ? Border.all(color: Colors.red, width: .7)
+                                ? Border.all(
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                    width: .8,
+                                  )
                                 : null,
                           ),
                         ),

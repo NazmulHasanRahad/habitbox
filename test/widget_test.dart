@@ -14,6 +14,8 @@ void main() {
       goalValue: 20,
       unit: 'pages',
       createdAt: DateTime(2026, 10, 28, 9, 30),
+      reminderMinutes: 9 * 60,
+      reminderDays: 21,
     );
 
     final restored = Habit.fromMap(habit.toMap(includeId: true));
@@ -26,6 +28,8 @@ void main() {
     expect(restored.goalValue, 20);
     expect(restored.unit, 'pages');
     expect(restored.createdAt, habit.createdAt);
+    expect(restored.reminderMinutes, 9 * 60);
+    expect(restored.reminderDays, 21);
   });
 
   test('HabitEntry map round-trip preserves fields', () {

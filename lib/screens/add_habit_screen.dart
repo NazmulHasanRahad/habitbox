@@ -93,6 +93,17 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
 
   /// Reminder time as minutes since midnight, or null when the habit has none.
   int? _reminderMinutes;
+  int _reminderDays = 127;
+
+  static const List<String> _weekdayLabels = <String>[
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
+  ];
 
   Habit? get _initial => widget.initialHabit;
 
@@ -117,6 +128,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
     _colorValue = initial.color;
     _iconCodePoint = initial.iconCodePoint;
     _reminderMinutes = initial.reminderMinutes;
+    _reminderDays = initial.reminderDays;
   }
 
   @override
@@ -157,11 +169,14 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
       return;
     }
 
-    if (!NotificationService.instance.isReady) {
+    final service = NotificationService.instance;
+    if (!service.isReady) await service.initialize();
+    if (!mounted) return;
+    if (!service.isReady) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Habit reminders are not ready. Please restart the app and try again.',
+            'Habit reminders could not start. Check notification setup and try again.',
           ),
         ),
       );
@@ -182,6 +197,17 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
       return;
     }
     await _pickReminderTime(_defaultReminderMinutes);
+  }
+
+  void _toggleReminderDay(int day) {
+    final updatedDays = _reminderDays ^ (1 << day);
+    if (updatedDays == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose at least one reminder day.')),
+      );
+      return;
+    }
+    setState(() => _reminderDays = updatedDays);
   }
 
   /// Opens the clock. [current] is preserved when the user backs out.
@@ -263,6 +289,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
         sortOrder: initial?.sortOrder ?? 0,
         description: descriptionText.isEmpty ? null : descriptionText,
         reminderMinutes: _reminderMinutes,
+        reminderDays: _reminderDays,
       );
       if (initial == null) {
         await controller.addHabit(habit);
@@ -526,7 +553,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                       children: [
                         Text(
                           enabled
-                              ? 'Every day at ${_timeLabel(context, minutes)}'
+                              ? '${_reminderDaySummary()} at ${_timeLabel(context, minutes)}'
                               : 'No reminder',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
@@ -539,7 +566,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                         Text(
                           enabled
                               ? 'Tap to change the time'
-                              : 'Switch on for a daily nudge',
+                              : 'Switch on to choose days and time',
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontSize: 12,
                             color: scheme.onSurfaceVariant,
@@ -553,6 +580,49 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
             ),
           ),
           Switch(value: enabled, onChanged: _onReminderToggled),
+        ],
+      ),
+    );
+  }
+
+  String _reminderDaySummary() {
+    if (_reminderDays == 127) return 'Every day';
+    return [
+      for (var day = 0; day < _weekdayLabels.length; day++)
+        if ((_reminderDays & (1 << day)) != 0) _weekdayLabels[day],
+    ].join(', ');
+  }
+
+  Widget _reminderDaySelector(ThemeData theme) {
+    if (_reminderMinutes == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Wrap(
+        spacing: 7,
+        runSpacing: 4,
+        children: [
+          for (var day = 0; day < _weekdayLabels.length; day++)
+            FilterChip(
+              label: Text(_weekdayLabels[day]),
+              selected: (_reminderDays & (1 << day)) != 0,
+              onSelected: (_) => _toggleReminderDay(day),
+              showCheckmark: false,
+              labelStyle: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: (_reminderDays & (1 << day)) != 0
+                    ? theme.colorScheme.onSecondaryContainer
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+              selectedColor: _accent.withValues(alpha: 0.22),
+              side: BorderSide(
+                color: (_reminderDays & (1 << day)) != 0
+                    ? _accent
+                    : theme.colorScheme.outlineVariant,
+              ),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+            ),
         ],
       ),
     );
@@ -692,9 +762,10 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
           _section(
             theme,
             'Reminder',
-            hint: 'One notification a day, at the time you pick',
+            hint: 'Choose one or more days and a time for your reminder',
           ),
           _reminderCard(context, theme),
+          _reminderDaySelector(theme),
           const SizedBox(height: 24),
           _section(theme, 'Color'),
           _colorGrid(theme),

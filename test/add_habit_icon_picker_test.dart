@@ -122,6 +122,43 @@ void main() {
     );
   });
 
+  testWidgets('edit mode supports selecting multiple reminder weekdays', (
+    tester,
+  ) async {
+    useTallScreen(tester);
+    final habit = Habit(
+      id: 8,
+      name: 'Walk',
+      type: HabitType.yesNo,
+      color: 0xFF4CAF50,
+      iconCodePoint: Icons.directions_walk.codePoint,
+      createdAt: DateTime(2026, 3, 4),
+      reminderMinutes: 9 * 60,
+      reminderDays: (1 << 0) | (1 << 2) | (1 << 4),
+    );
+
+    await tester.pumpWidget(
+      GetMaterialApp(home: AddHabitScreen(initialHabit: habit)),
+    );
+    await tester.pumpAndSettle();
+
+    FilterChip chip(String day) =>
+        tester.widget<FilterChip>(find.widgetWithText(FilterChip, day));
+    expect(chip('Mon').selected, isTrue);
+    expect(chip('Wed').selected, isTrue);
+    expect(chip('Fri').selected, isTrue);
+    expect(chip('Tue').selected, isFalse);
+
+    await tester.tap(find.widgetWithText(FilterChip, 'Tue'));
+    await tester.pumpAndSettle();
+    expect(chip('Tue').selected, isTrue);
+
+    await tester.tap(find.widgetWithText(FilterChip, 'Mon'));
+    await tester.pumpAndSettle();
+    expect(chip('Mon').selected, isFalse);
+    expect(chip('Tue').selected, isTrue);
+  });
+
   testWidgets('a code point no longer in the catalog falls back safely', (
     tester,
   ) async {

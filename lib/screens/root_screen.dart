@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
+import '../controllers/habit_controller.dart';
+import '../controllers/settings_controller.dart';
 import 'home_screen.dart';
 import 'task_screen.dart';
 
@@ -17,7 +20,16 @@ class RootScreen extends StatefulWidget {
 }
 
 class _RootScreenState extends State<RootScreen> {
-  int _index = 0;
+  // The menu's "opens on" setting picks the first tab; Habit stays the
+  // fallback when no settings controller is registered (widget tests), and
+  // when the task system is hidden the Task tab simply does not exist.
+  late int _index = _initialIndex();
+
+  int _initialIndex() {
+    if (!Get.isRegistered<SettingsController>()) return 0;
+    final settings = Get.find<SettingsController>();
+    return settings.tasksEnabled.value ? settings.homeTab.value : 0;
+  }
 
   void _select(int index) {
     if (index == _index) return;
@@ -26,43 +38,80 @@ class _RootScreenState extends State<RootScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // The pill floats above the Android navigation bar instead of hiding
-    // behind it.
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    // Every observable the shell reads lives inside this Obx, so hiding the
+    // task system or flipping the view mode repaints the pill immediately.
+    return Obx(() {
+      final tasksEnabled = Get.isRegistered<SettingsController>()
+          ? Get.find<SettingsController>().tasksEnabled.value
+          : true;
+      final compact = Get.isRegistered<HabitController>()
+          ? Get.find<HabitController>().compactView.value
+          : false;
+      // With tasks hidden there is only one destination; _index may still
+      // hold 1 from before the switch, so clamp what is actually shown.
+      final effectiveIndex = tasksEnabled ? _index : 0;
 
-    return PopScope(
-      // Back from a non-home tab lands on Habit; on Habit it exits the app.
-      canPop: _index == 0,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) _select(0);
-      },
-      child: Scaffold(
-        body: Stack(
-          children: [
-            IndexedStack(
-              index: _index,
-              children: const [HomeScreen(), TaskScreen()],
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: bottomInset + 10,
-              child: Center(
-                child: _NavPill(index: _index, onSelect: _select),
+      // The pill floats above the Android navigation bar instead of hiding
+      // behind it.
+      final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+      return PopScope(
+        // Back from a non-home tab lands on Habit; on Habit it exits the app.
+        canPop: effectiveIndex == 0,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) _select(0);
+        },
+        child: Scaffold(
+          body: Stack(
+            children: [
+              IndexedStack(
+                index: effectiveIndex,
+                children: const [HomeScreen(), TaskScreen()],
               ),
-            ),
-          ],
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: bottomInset + 10,
+                child: Center(
+                  child: _NavPill(
+                    index: effectiveIndex,
+                    showTask: tasksEnabled,
+                    compact: compact,
+                    onSelect: _select,
+                    onPickView: (viewCompact) {
+                      if (!Get.isRegistered<HabitController>()) return;
+                      Get.find<HabitController>().setViewMode(
+                        compact: viewCompact,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
 
 class _NavPill extends StatelessWidget {
-  const _NavPill({required this.index, required this.onSelect});
+  const _NavPill({
+    required this.index,
+    required this.showTask,
+    required this.compact,
+    required this.onSelect,
+    required this.onPickView,
+  });
 
   final int index;
+
+  /// False turns the pill into the habit view switch: 'Card' and 'List' tabs
+  /// that pick the card or compact-row layout directly.
+  final bool showTask;
+  final bool compact;
   final ValueChanged<int> onSelect;
+  final ValueChanged<bool> onPickView;
 
   @override
   Widget build(BuildContext context) {
@@ -88,20 +137,37 @@ class _NavPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _NavTab(
-            // grid_2x2 and list_checks are Lucide names; these are Flutter's
-            // closest built-in icons.
-            icon: Icons.grid_view,
-            label: 'Habit',
-            selected: index == 0,
-            onTap: () => onSelect(0),
-          ),
-          _NavTab(
-            icon: Icons.checklist,
-            label: 'Task',
-            selected: index == 1,
-            onTap: () => onSelect(1),
-          ),
+          if (!showTask) ...[
+            // With the task system hidden the pill is the view switch itself:
+            // Card and List are the two habit layouts, tapped directly.
+            _NavTab(
+              icon: Icons.dashboard,
+              label: 'Card',
+              selected: !compact,
+              onTap: () => onPickView(false),
+            ),
+            _NavTab(
+              icon: Icons.view_list,
+              label: 'List',
+              selected: compact,
+              onTap: () => onPickView(true),
+            ),
+          ] else ...[
+            _NavTab(
+              // grid_2x2 and list_checks are Lucide names; these are Flutter's
+              // closest built-in icons.
+              icon: Icons.grid_view,
+              label: 'Habit',
+              selected: index == 0,
+              onTap: () => onSelect(0),
+            ),
+            _NavTab(
+              icon: Icons.checklist,
+              label: 'Task',
+              selected: index == 1,
+              onTap: () => onSelect(1),
+            ),
+          ],
         ],
       ),
     );

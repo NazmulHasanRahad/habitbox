@@ -157,6 +157,7 @@ class _TaskDashboard extends StatelessWidget {
 
       final scheme = Theme.of(context).colorScheme;
       final palette = TaskPalette(scheme);
+      final isDark = scheme.brightness == Brightness.dark;
 
       // The chips ride above the list as the drag list's own header, so they stay
       // put while a card is being moved. The day's bar is not here any more: it
@@ -244,14 +245,12 @@ class _TaskDashboard extends StatelessWidget {
                     width: 76,
                     height: 76,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.09),
+                      color: scheme.primary.withValues(
+                        alpha: isDark ? 0.14 : 0.10,
+                      ),
                       borderRadius: BorderRadius.circular(24),
                     ),
-                    child: Icon(
-                      icon,
-                      size: 34,
-                      color: const Color(0xFF52D6A4),
-                    ),
+                    child: Icon(icon, size: 34, color: scheme.primary),
                   ),
 
                   const SizedBox(height: 24),
@@ -260,11 +259,11 @@ class _TaskDashboard extends StatelessWidget {
                   Text(
                     title,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 19,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.4,
-                      color: Color(0xFFE9EDF4),
+                      color: scheme.onSurface,
                     ),
                   ),
 
@@ -276,11 +275,11 @@ class _TaskDashboard extends StatelessWidget {
                     child: Text(
                       message,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         height: 1.6,
                         fontWeight: FontWeight.w400,
-                        color: Color(0xFF858D9C),
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -289,7 +288,7 @@ class _TaskDashboard extends StatelessWidget {
 
                   // CTA
                   Material(
-                    color: const Color(0xFF19372E),
+                    color: scheme.primaryContainer,
                     borderRadius: BorderRadius.circular(13),
                     child: InkWell(
                       onTap: TaskScreen.openAddTask,
@@ -301,19 +300,19 @@ class _TaskDashboard extends StatelessWidget {
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
+                          children: [
                             Icon(
                               Icons.add_rounded,
                               size: 19,
-                              color: Color(0xFF6DE0AE),
+                              color: scheme.onPrimaryContainer,
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Text(
                               'Create a task',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF8BE5BD),
+                                color: scheme.onPrimaryContainer,
                               ),
                             ),
                           ],
@@ -975,90 +974,6 @@ class _SectionHeader extends StatelessWidget {
           message: open == true ? 'Hide completed' : 'Show completed',
           child: content,
         ),
-      ),
-    );
-  }
-}
-
-/// The quiet version of an empty list: a short note where the cards would be,
-/// with the chips still above it.
-class _NoDataNotice extends StatelessWidget {
-  const _NoDataNotice({
-    required this.icon,
-    required this.title,
-    required this.message,
-    required this.actionLabel,
-    required this.onAction,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-  final String actionLabel;
-  final VoidCallback onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.7)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: scheme.primary.withValues(alpha: 0.12),
-                ),
-                child: Icon(icon, size: 18, color: scheme.primary),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          Text(
-            message,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: onAction,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                visualDensity: VisualDensity.compact,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(actionLabel),
-            ),
-          ),
-        ],
       ),
     );
   }

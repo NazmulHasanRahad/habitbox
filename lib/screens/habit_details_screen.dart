@@ -372,15 +372,16 @@ class _HabitDetailsScreenState extends State<HabitDetailsScreen> {
     );
   }
 
-  /// Icon, name and description on one baseline-friendly row, followed by two
-  /// quiet pills that say how the habit is tracked and what its target is.
+  /// Compact info row: a small icon tile, the habit name and its description
+  /// when one exists — no placeholder text for missing descriptions.
   Widget _header(Habit habit, Color accent) {
     final description = habit.description?.trim();
+    final hasDescription = description != null && description.isNotEmpty;
     final goal = habit.goalValue;
     final unit = habit.unit?.trim();
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -397,20 +398,20 @@ class _HabitDetailsScreenState extends State<HabitDetailsScreen> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.20),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(13),
               border: Border.all(color: accent.withValues(alpha: 0.50)),
             ),
             child: Icon(
               habitIconData(habit.iconCodePoint),
               color: accent,
-              size: 31,
+              size: 21,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,28 +422,26 @@ class _HabitDetailsScreenState extends State<HabitDetailsScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 21,
+                    fontSize: 12,
                     height: 1.15,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.2,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  (description == null || description.isEmpty)
-                      ? 'No description'
-                      : description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.35,
-                    color: (description == null || description.isEmpty)
-                        ? Colors.white24
-                        : Colors.white60,
+                if (hasDescription) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      height: 1.35,
+                      color: Colors.white60,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
+                ],
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,

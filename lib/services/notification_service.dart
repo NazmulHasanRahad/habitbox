@@ -7,12 +7,10 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../models/habit.dart';
 
-/// Daily habit reminders, one repeating notification per habit.
+/// Weekly habit reminders, one repeating notification per selected weekday.
 ///
-/// The notification id is the habit's own row id, so a habit's reminder can be
-/// rescheduled or cancelled without disturbing any other. Every method is a
-/// no-op until [initialize] has succeeded — that keeps widget tests, which
-/// have no platform channel, working without a mock.
+/// Each habit reserves seven notification ids, one per weekday, so its
+/// reminders can be rescheduled without disturbing another habit.
 class NotificationService {
   NotificationService._();
 
@@ -38,11 +36,11 @@ class NotificationService {
     if (_ready) return;
     try {
       tz_data.initializeTimeZones();
-      final zone = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(zone.identifier));
+      await _initializeLocalTimezone();
 
       const settings = InitializationSettings(
-        android: AndroidInitializationSettings('@drawable/ic_notification'),
+        // The plugin expects the resource name, without an @drawable prefix.
+        android: AndroidInitializationSettings('ic_notification'),
         // Permission is asked for at the moment a reminder is switched on,
         // not on first launch.
         iOS: DarwinInitializationSettings(
@@ -57,9 +55,30 @@ class NotificationService {
         ),
       );
       _ready = await _plugin.initialize(settings: settings) ?? false;
+      if (!_ready) {
+        debugPrint('Habit notification plugin did not initialize.');
+      }
     } catch (error) {
       debugPrint('Habit reminders are unavailable: $error');
       _ready = false;
+    }
+  }
+
+  /// A missing timezone plugin or a custom device timezone must not prevent
+  /// notification setup. The fallback preserves the current local offset.
+  Future<void> _initializeLocalTimezone() async {
+    try {
+      final zone = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(zone.identifier));
+    } catch (error) {
+      final now = DateTime.now();
+      final offset = now.timeZoneOffset.inMilliseconds;
+      tz.setLocalLocation(
+        tz.Location('Local', const <int>[], const <int>[], <tz.TimeZone>[
+          tz.TimeZone(offset, isDst: false, abbreviation: now.timeZoneName),
+        ]),
+      );
+      debugPrint('Using local-offset timezone fallback: $error');
     }
   }
 
@@ -104,10 +123,16 @@ class NotificationService {
     final id = habit.id;
     if (!_ready || id == null) return;
     try {
-      await _plugin.cancel(id: id);
+      for (var day = 0; day < 7; day++) {
+        await _plugin.cancel(id: _notificationId(id, day));
+      }
       final minutes = habit.reminderMinutes;
-      if (minutes == null) return;
-      await _schedule(id, habit, minutes);
+      if (minutes == null || habit.reminderDays == 0) return;
+      for (var day = 0; day < 7; day++) {
+        if ((habit.reminderDays & (1 << day)) != 0) {
+          await _schedule(_notificationId(id, day), habit, minutes, day);
+        }
+      }
     } catch (error) {
       debugPrint('Could not schedule the reminder for habit $id: $error');
     }
@@ -117,7 +142,9 @@ class NotificationService {
   Future<void> cancelHabit(int habitId) async {
     if (!_ready) return;
     try {
-      await _plugin.cancel(id: habitId);
+      for (var day = 0; day < 7; day++) {
+        await _plugin.cancel(id: _notificationId(habitId, day));
+      }
     } catch (error) {
       debugPrint('Could not cancel the reminder for habit $habitId: $error');
     }
@@ -126,12 +153,24 @@ class NotificationService {
   /// Re-applies every reminder. Run once per launch so a reminder lost to a
   /// clock change or a restore comes back.
   Future<void> syncAll(Iterable<Habit> habits) async {
+    if (!_ready) return;
+    try {
+      // Also clears daily reminder ids used by older app versions.
+      await _plugin.cancelAll();
+    } catch (error) {
+      debugPrint('Could not clear old habit reminders: $error');
+    }
     for (final habit in habits) {
       await syncHabit(habit);
     }
   }
 
-  Future<void> _schedule(int id, Habit habit, int minutes) async {
+  Future<void> _schedule(
+    int id,
+    Habit habit,
+    int minutes,
+    int weekdayIndex,
+  ) async {
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
         _channelId,
@@ -161,10 +200,9 @@ class NotificationService {
 
     // Add goal information if it's a numeric habit.
     if (habit.type != HabitType.yesNo && habit.goalValue != null) {
-      final goalStr =
-          habit.goalValue! % 1 == 0
-              ? habit.goalValue!.toInt().toString()
-              : habit.goalValue!.toString();
+      final goalStr = habit.goalValue! % 1 == 0
+          ? habit.goalValue!.toInt().toString()
+          : habit.goalValue!.toString();
       final unitStr = habit.unit?.trim() ?? '';
       final goalLine = 'Daily goal: $goalStr $unitStr'.trim();
       body = body == 'Time for your habit.' ? goalLine : '$body\n$goalLine';
@@ -174,11 +212,10 @@ class NotificationService {
       id: id,
       title: habit.name,
       body: body,
-      scheduledDate: _nextOccurrence(minutes),
+      scheduledDate: _nextOccurrence(minutes, weekdayIndex),
       notificationDetails: details,
       androidScheduleMode: mode,
-      // Fires again the same time every day.
-      matchDateTimeComponents: DateTimeComponents.time,
+      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
 
     try {
@@ -190,29 +227,36 @@ class NotificationService {
     }
   }
 
-  /// Today at [minutes] past midnight, or tomorrow once that moment has gone
-  /// by. Rebuilt from calendar fields rather than by adding a day, so a DST
-  /// change cannot move the wall-clock time the reminder is set for.
-  static tz.TZDateTime _nextOccurrence(int minutes) {
+  static int _notificationId(int habitId, int weekdayIndex) =>
+      habitId * 8 + weekdayIndex + 1;
+
+  /// Finds the next occurrence of [weekdayIndex] (Monday is 0) at [minutes].
+  /// Calendar fields keep the wall-clock time stable across DST changes.
+  static tz.TZDateTime _nextOccurrence(int minutes, int weekdayIndex) {
     final now = tz.TZDateTime.now(tz.local);
     final hour = minutes ~/ 60;
     final minute = minutes % 60;
-    final today = tz.TZDateTime(
+    final targetWeekday = weekdayIndex + 1;
+    var daysAhead = (targetWeekday - now.weekday + 7) % 7;
+    var occurrence = tz.TZDateTime(
       tz.local,
       now.year,
       now.month,
-      now.day,
+      now.day + daysAhead,
       hour,
       minute,
     );
-    if (today.isAfter(now)) return today;
-    return tz.TZDateTime(
-      tz.local,
-      now.year,
-      now.month,
-      now.day + 1,
-      hour,
-      minute,
-    );
+    if (!occurrence.isAfter(now)) {
+      daysAhead += 7;
+      occurrence = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day + daysAhead,
+        hour,
+        minute,
+      );
+    }
+    return occurrence;
   }
 }

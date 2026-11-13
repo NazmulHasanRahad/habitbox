@@ -52,7 +52,7 @@ class AppBarShell extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color.lerp(fill, Colors.white, 0.07)!, fill],
+                colors: [Color.lerp(fill, Colors.white, 0.001)!, fill],
               ),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(

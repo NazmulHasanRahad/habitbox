@@ -15,9 +15,9 @@ class DatabaseHelper {
   static const String databaseName = 'habitbox.db';
 
   /// v4 added the task tables through [TaskTables]; v5 gave them a `sort_order`
-  /// column for the dashboard's manual order. v6 added the optional daily
-  /// reminder time to habits. No existing row is rewritten by any step.
-  static const int _databaseVersion = 6;
+  /// column for the dashboard's manual order. v6 added reminder times and v7
+  /// added selected reminder weekdays.
+  static const int _databaseVersion = 7;
 
   static const String tableHabits = 'habits';
   static const String tableHabitEntries = 'habit_entries';
@@ -122,6 +122,16 @@ UPDATE $tableTasks SET sort_order = (
         'reminder_minutes INTEGER',
       );
     }
+    if (oldVersion < 7) {
+      // v7: store selected reminder weekdays. Existing timed reminders keep
+      // their original daily behavior by selecting all seven days.
+      await _addColumnIfMissing(
+        db,
+        tableHabits,
+        'reminder_days',
+        'reminder_days INTEGER NOT NULL DEFAULT 127',
+      );
+    }
   }
 
   /// ALTER TABLE guarded by PRAGMA table_info so a re-run (e.g. after a
@@ -152,7 +162,8 @@ CREATE TABLE $tableHabits (
   created_at INTEGER NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0,
   description TEXT,
-  reminder_minutes INTEGER
+  reminder_minutes INTEGER,
+  reminder_days INTEGER NOT NULL DEFAULT 127
 )''';
 
   static const String _createHabitEntries =

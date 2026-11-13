@@ -19,7 +19,8 @@ class CountHabitBody extends StatefulWidget {
   static const int visibleDays = 150;
   static const double barWidth = 10;
   static const double barGap = 2;
-  static const double chartHeight = 52;
+  static const double chartHeight = 70;
+  static const double dayLabelHeight = 11;
 
   /// 20% rounder than the previous 9px, still under half the bar width so the
   /// base stays square-ish when a bar is short.
@@ -51,57 +52,21 @@ class _CountHabitBodyState extends State<CountHabitBody> {
   String _formatValue(double value) =>
       value % 1 == 0 ? value.toInt().toString() : value.toString();
 
-  /// Today's mark control: the shared rounded rectangle, showing a progress
-  /// ring until the goal is reached and then exactly the check the yes/no
-  /// card uses. Tapping it opens the value dialog without triggering Details.
+  /// Today's mark control: a circular progress ring that fills toward the
+  /// goal with a + in the middle. Tapping it opens the value dialog.
   Widget _todayAction(Habit habit, HabitController controller) {
     final palette = widget.palette;
     final value = controller.valueFor(habit, todayDateKey) ?? 0;
     final goal = habit.goalValue;
-    final hasGoal = goal != null && goal > 0;
-    final isComplete = goal != null && goal > 0 && value >= goal;
-    final progress = goal == null || goal <= 0
-        ? 0.0
-        : (value / goal).clamp(0.0, 1.0);
+    final fraction = goal != null && goal > 0
+        ? (value / goal).clamp(0.0, 1.0)
+        : 0.0;
 
-    return HabitMarkButton(
+    return HabitProgressMarkButton(
       palette: palette,
-      done: isComplete,
-      tooltip: isComplete ? 'Edit today' : 'Log today',
+      fraction: fraction,
+      tooltip: fraction >= 1 ? 'Edit today' : 'Log today',
       onTap: () => HabitValueSheet.show(context, habit),
-      child: isComplete
-          ? HabitMarkButton.doneIcon(palette)
-          : SizedBox(
-              width: 30,
-              height: 30,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (hasGoal)
-                    SizedBox(
-                      width: 30,
-                      height: 30,
-                      child: CircularProgressIndicator(
-                        value: progress,
-                        strokeWidth: 3.5,
-                        strokeCap: StrokeCap.round,
-                        color: palette.bright,
-                        backgroundColor: palette.muted,
-                      ),
-                    )
-                  else
-                    Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: palette.muted, width: 3.5),
-                      ),
-                    ),
-                  Icon(Icons.add, size: 20, color: palette.foreground),
-                ],
-              ),
-            ),
     );
   }
 
@@ -151,7 +116,9 @@ class _CountHabitBodyState extends State<CountHabitBody> {
         ),
         const SizedBox(height: 5),
         SizedBox(
-          height: CountHabitBody.chartHeight + 15,
+          height: CountHabitBody.chartHeight +
+              4 +
+              CountHabitBody.dayLabelHeight,
           child: Obx(() {
             final values = controller.entries[habit.id] ?? const {};
             // Scale is capped by the goal (when set) or the biggest saved
@@ -230,16 +197,19 @@ class _CountHabitBodyState extends State<CountHabitBody> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          '${day.day}',
-                          style: TextStyle(
-                            color: isToday
-                                ? palette.foreground
-                                : palette.foregroundSoft,
-                            fontSize: 7,
-                            fontWeight: isToday
-                                ? FontWeight.w700
-                                : FontWeight.w400,
+                        SizedBox(
+                          height: CountHabitBody.dayLabelHeight,
+                          child: Text(
+                            '${day.day}',
+                            style: TextStyle(
+                              color: isToday
+                                  ? palette.foreground
+                                  : palette.foregroundSoft,
+                              fontSize: 7,
+                              fontWeight: isToday
+                                  ? FontWeight.w700
+                                  : FontWeight.w400,
+                            ),
                           ),
                         ),
                       ],

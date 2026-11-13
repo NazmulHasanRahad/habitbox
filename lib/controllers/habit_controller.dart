@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../models/habit.dart';
 import '../models/habit_entry.dart';
 import '../repositories/habit_repository.dart';
+import '../services/habit_widget_service.dart';
 import '../services/notification_service.dart';
 import '../services/view_preferences.dart';
 import '../utils/date_key.dart';
@@ -33,7 +36,11 @@ class HabitController extends GetxController {
     super.onInit();
     // Reminders are re-armed from the stored habits once they are loaded, so
     // a schedule lost between launches comes back on its own.
-    loadHabits().then((_) => NotificationService.instance.syncAll(habits));
+    loadHabits().then((_) {
+      if (loadError.isEmpty) {
+        NotificationService.instance.syncAll(habits);
+      }
+    });
     ViewPreferences.read().then((value) {
       if (value != null) {
         compactView.value = value == ViewPreferences.viewCompact;
@@ -62,6 +69,7 @@ class HabitController extends GetxController {
       entries
         ..clear()
         ..addAll(map);
+      unawaited(HabitWidgetService.sync(habits, entries));
     } catch (e) {
       loadError.value = e.toString();
     } finally {
@@ -223,5 +231,6 @@ class HabitController extends GetxController {
     }
     entries[habitId] = map;
     entries.refresh();
+    unawaited(HabitWidgetService.sync(habits, entries));
   }
 }

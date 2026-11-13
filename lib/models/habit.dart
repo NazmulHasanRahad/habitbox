@@ -30,6 +30,7 @@ class Habit {
     this.sortOrder = 0,
     this.description,
     this.reminderMinutes,
+    this.reminderDays = 127,
   });
 
   final int? id;
@@ -50,9 +51,13 @@ class Habit {
   /// Optional free-text note about the habit.
   final String? description;
 
-  /// Daily reminder time as minutes since midnight (0-1439); null means the
-  /// habit has no reminder. The same time repeats every day.
+  /// Reminder time as minutes since midnight (0-1439); null means no reminder.
+  /// When set, the reminder repeats on the selected [reminderDays].
   final int? reminderMinutes;
+
+  /// Bitmask of reminder weekdays, with Monday as bit 0 and Sunday as bit 6.
+  /// All seven days is the default for existing daily reminders.
+  final int reminderDays;
 
   static Habit fromMap(Map<String, Object?> map) {
     return Habit(
@@ -69,6 +74,7 @@ class Habit {
       sortOrder: (map['sort_order'] as int?) ?? 0,
       description: map['description'] as String?,
       reminderMinutes: map['reminder_minutes'] as int?,
+      reminderDays: (map['reminder_days'] as int?) ?? 127,
     );
   }
 
@@ -84,6 +90,7 @@ class Habit {
       'sort_order': sortOrder,
       'description': description,
       'reminder_minutes': reminderMinutes,
+      'reminder_days': reminderDays,
     };
     if (includeId && id != null) {
       map['id'] = id;
@@ -103,6 +110,7 @@ class Habit {
     int? sortOrder,
     String? description,
     int? reminderMinutes,
+    int? reminderDays,
   }) {
     return Habit(
       id: id ?? this.id,
@@ -116,6 +124,7 @@ class Habit {
       sortOrder: sortOrder ?? this.sortOrder,
       description: description ?? this.description,
       reminderMinutes: reminderMinutes ?? this.reminderMinutes,
+      reminderDays: reminderDays ?? this.reminderDays,
     );
   }
 }

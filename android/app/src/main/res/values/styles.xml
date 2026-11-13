@@ -15,4 +15,20 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    <style name="HabitWidgetConfigureTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#7C4DFF</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#101613</item>
+        <item name="android:navigationBarColor">#101613</item>
+    </style>
+    <style name="HabitWidgetDay">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginBottom">2dp</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:src">@drawable/habit_widget_heatmap_cell</item>
+        <item name="android:scaleType">fitXY</item>
+    </style>
 </resources>

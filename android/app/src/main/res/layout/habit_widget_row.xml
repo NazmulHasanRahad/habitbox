@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:orientation="horizontal">
+
+    <TextView
+        android:id="@+id/widget_day_0"
+        style="@style/HabitWidgetDay" />
+
+    <TextView
+        android:id="@+id/widget_day_1"
+        style="@style/HabitWidgetDay" />
+
+    <TextView
+        android:id="@+id/widget_day_2"
+        style="@style/HabitWidgetDay" />
+
+    <TextView
+        android:id="@+id/widget_day_3"
+        style="@style/HabitWidgetDay" />
+
+    <TextView
+        android:id="@+id/widget_day_4"
+        style="@style/HabitWidgetDay" />
+
+    <TextView
+        android:id="@+id/widget_day_5"
+        style="@style/HabitWidgetDay" />
+
+    <TextView
+        android:id="@+id/widget_day_6"
+        style="@style/HabitWidgetDay" />
+</LinearLayout>

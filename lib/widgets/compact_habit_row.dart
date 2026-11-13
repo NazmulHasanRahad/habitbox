@@ -269,7 +269,7 @@ class CompactHabitRow extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: scheme.onSurface,
-            fontSize: 13.5,
+            fontSize: 10,
             height: 1.2,
             fontWeight: FontWeight.w600,
           ),
